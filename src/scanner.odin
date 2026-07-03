@@ -1,14 +1,20 @@
 package main
 
-import "core:strings"
 import "core:fmt"
-import "core:bytes"
+
+// The scanner struct
+// The scanner scans the file and produces tokens
 Scanner :: struct {
+	// The source code it is reading from
 	source: string,
+	// The tokens it will produce
 	tokens: [dynamic]Token,
+	// The start of the current lexeme, where we are currently in the lexeme,
+	// and the current line that we are on
 	start, current, line: int,
 }
 
+// create a new scanner with default values
 new_scanner :: proc(source: string) -> Scanner {
 	return {
 		source = source,
@@ -19,41 +25,65 @@ new_scanner :: proc(source: string) -> Scanner {
 	}
 }
 
+// scan all of the tokens based on a scanner
+// returns and error that must be handled
 scan_tokens :: proc(self: ^Scanner) -> (error: Error) {
+	// reset the scanner just in case
 	self.start = 0
 	self.current = 0
 	self.line = 1
+
+	// the program has not failed yet 
 	hasFailed := false
 
+	// while the scanner is not at the end of the source code
 	for (!scanner_is_at_end(self)) {
+		// set the start of the lexeme to the current position
+		// as we are starting a new lexeme
 		self.start = self.current
+
+		// scan for the next token
 		err := scan_token(self)
+		// if there is an error print it
+		// the program has now had an error, 
+		// so set the hasFailed flag to be true
 		if (err != nil) {
 			print_err(err)
 			hasFailed = true
 		}
 	}
 
+	// append a file end of file token onto the end of the tokens
 	append(&self.tokens, new_token( .EOF, "", self.line))
 
+	// if the program failed
 	if (hasFailed) {
+		// RIP program I guess
 		errMessage := fmt.tprintf("Program has excited due to unexpected errors")
 		return new_error(
 			errMessage
 		)
 	}
+	// return no errors
 	return nil
 }
 
 @(private="file")
+// return if the scanner is at the end of the source code
 scanner_is_at_end :: proc(self: ^Scanner) -> bool {
+	// if the current index is greater than the length of the
+	// source code
 	return self.current >= len(self.source)
 }
 
 @(private="file")
+// scan for the next token
 scan_token :: proc(self: ^Scanner) -> Error {
+	// get the next rune
 	c: rune = advance(self)
 	switch (c) {
+	// ONE CHAR CASE
+	// simply add the token based on the char
 	case '(': add_token(self, .LEFT_PARAN)
 	case ')': add_token(self, .RIGHT_PARAN)
 	case '{': add_token(self, .LEFT_BRACE)
@@ -64,26 +94,71 @@ scan_token :: proc(self: ^Scanner) -> Error {
 	case '+': add_token(self, .PLUS)
 	case ';': add_token(self, .SEMICOLON)
 	case '*': add_token(self, .STAR)
+	// MULTI CHAR CASE
+	// check for the 'match' of the next token expected.
+	// if the next token is there, do the double char
+	// otherwise just a single char
+	case '!':
+		add_token(self, match_token(self, '=') ? .BANG_EQUAL : .BANG)
+	case '=':
+		add_token(self, match_token(self, '=') ? .EQUAL_EQUAL : .EQUAL)
+	case '>':
+		add_token(self, match_token(self, '=') ? .GREATER_EQUAL : .GREATER)
+	case '<':
+		add_token(self, match_token(self, '=') ? .LESS_EQUAL : .LESS)
 	
-	case ' ', '\t', '\n':
+	// if there is a new line, we have to increase the number of lines
+	case '\n':
+		self.line += 1
+	// ignore whitespaces and tabs, they are not used in this language
+	case ' ', '\t':
+	// if the character is none of the expected characters, the create a new error
+	// and return it
 	case:
 		errMessage := fmt.tprintf("character: {} unexpected", c)
 		return new_error(self.line, errMessage, "character not defined")
 	}
 
+	// return no errors
 	return nil
 }
 
 @(private="file")
+// advance based on amount (1)
 advance :: proc(self: ^Scanner, amount: int = 1) -> rune {
+	// get the current rune
 	rune := rune(self.source[self.current])
+	// increase current by 1
 	self.current += amount
+	// return the rune
 	return rune
 }
 
 @(private="file")
+// add a new token
 add_token :: proc(self: ^Scanner, type: TokenType, literal: []byte = {}) {
+	// create the lexeme string
+	// the lexeme comes from the start of the lexeme
+	// got earlier in the scan_tokens() function, to where
+	// we currently are in the program lifetime
 	text := self.source[self.start:self.current]
+	// append a new token to the tokens array
 	append(&self.tokens, new_token(type, text, self.line, literal))
+}
+
+@(private="file")
+// check the next rune against the expected rune
+match_token :: proc(self: ^Scanner, expected: rune) -> bool {
+	// if the scanner is at the end, return false
+	// can give a out of bounds error otherwise
+	if (scanner_is_at_end(self)) do return false
+	// advance in the char, if it is not the expected character 
+	// go back to the previous character and return false
+	if (advance(self) != expected) {
+		self.current -= 1
+		return false
+	}
+	// otherwise return true
+	return true
 }
 

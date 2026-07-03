@@ -26,10 +26,8 @@ main :: proc() {
 	if (argc == 2) {
 		ext := filepath.ext(argv[1])
 		if (ext != ".lox") {
-			errMessage := fmt.tprintf(
-							"File must be of type .lox, inputed: {}", ext
-						)
-			print_err(new_error(errMessage), 68)
+			errMessage := fmt.printf(
+							"File must be of type .lox")
 		}
 		run_file(argv[1], allocator)
 		
