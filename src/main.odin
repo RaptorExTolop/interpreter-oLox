@@ -18,32 +18,27 @@ main :: proc() {
 		os.exit(64)
 	}
 	if (argc == 2) {
-		err, code := run_file(argv[1], allocator)
-		if (err != false) {
-			os.exit(code)
-		}
+		run_file(argv[1], allocator)
+		
 	} else {
-		err, code := run_prompt(allocator)
-		if (err != false) {
-			os.exit(code)
-		}
+		run_prompt(allocator)
 	}
 }
 
-run_file :: proc(file_name: string, allocator: runtime.Allocator) -> (error: bool, errCode: int){
+run_file :: proc(file_name: string, allocator: runtime.Allocator) {
 	fmt.printf("Running file: {}\n", file_name)
 	data, err := os.read_entire_file(file_name, allocator)
 	if (err != nil) {
-		fmt.printf("Error reading from file: {}\n", err)
-		return true, 65
+		errMessage := fmt.tprintf("Unable to read from file: {}", err)
+		print_err(
+			new_error(errMessage), 64
+		)
 	}
 
 	run(string(data), allocator)
-
-	return false, 0
 }
 
-run_prompt :: proc(allocator: runtime.Allocator) -> (error: bool, errCode: int){
+run_prompt :: proc(allocator: runtime.Allocator) {
 	fmt.printf("Welcome to the lox prompt! If you would like to exit, type: exit\n")
 	for {
 		fmt.printf(">>> ")
@@ -53,29 +48,40 @@ run_prompt :: proc(allocator: runtime.Allocator) -> (error: bool, errCode: int){
 
 		if (err != nil) {
 			fmt.printf("Error reading input: {}", err)
-			return true, 64
+			errMessage := fmt.tprintf("Error reading input: {}\n", err)
+			print_err(
+				new_error(errMessage), 65
+			)
 		}
 
 		input := strings.trim_space(string(buf[:n])) 
 
 		if (input == "exit" || input == "") {
-			return false, 0
+			return 
 		}
 
 		fmt.printf("You have inputed: {}\n", input)
 
-		e, code := run(input, allocator)
-
-		if (e != false) {
-			return true, code
+		e := run(input, allocator)
+		if (e != nil) {
+			print_err(e)
 		}
 	}
 
-	return false, 0
+	return 
 }
 
-run :: proc(code: string, allocator: runtime.Allocator) -> (error: bool, exitCode: int) {
-	new_scanner(code)
+run :: proc(code: string, allocator: runtime.Allocator) -> (error: Error) {
+	scanner := new_scanner(code)
+	tokens, err := scan(&scanner)
 
-	return false, 0
+	if (err != nil) {
+		return err
+	}
+
+	for token, i in tokens {
+		fmt.printf("Token: {} at {}\n", token, i)
+	}
+
+	return nil
 }
