@@ -9,7 +9,7 @@ Error :: union {
 }
 
 InterpreterError  :: struct {
-	line: u32,
+	line: int,
 	location: string,
 	message: string,
 }
@@ -24,7 +24,7 @@ new_error :: proc {
 }
 
 @(private="file")
-new_interpreter_error :: proc(line: u32, location, message: string) -> InterpreterError {
+new_interpreter_error :: proc(line: int, location, message: string) -> InterpreterError {
 	return {
 		line = line,
 		location = location,
@@ -67,7 +67,7 @@ print_err_fatal :: proc(err: Error, code: int) {
 
 @(private="file")
 print_int_error_non_fatal :: proc(self: ^InterpreterError) {
-	fmt.printf("[line {}] Error {}: {}\n", self.line, self.location, self.message)
+	fmt.printf("Error at line {}: {}, {}\n", self.line, self.location, self.message)
 }
 
 @(private="file")

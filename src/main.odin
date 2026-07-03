@@ -35,7 +35,10 @@ run_file :: proc(file_name: string, allocator: runtime.Allocator) {
 		)
 	}
 
-	run(string(data), allocator)
+	e := run(string(data), allocator)
+	if (e != nil) {
+		print_err(e, 69)
+	}
 }
 
 run_prompt :: proc(allocator: runtime.Allocator) {
@@ -73,14 +76,14 @@ run_prompt :: proc(allocator: runtime.Allocator) {
 
 run :: proc(code: string, allocator: runtime.Allocator) -> (error: Error) {
 	scanner := new_scanner(code)
-	tokens, err := scan(&scanner)
+	err := scan_tokens(&scanner)
 
 	if (err != nil) {
 		return err
 	}
 
-	for token, i in tokens {
-		fmt.printf("Token: {} at {}\n", token, i)
+	for token in scanner.tokens {
+		fmt.printf("{}\n", token_to_string(token))
 	}
 
 	return nil
