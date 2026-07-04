@@ -1,5 +1,7 @@
 package main
 
+import "core:strconv"
+import "core:c"
 import "core:math"
 import "core:fmt"
 
@@ -113,6 +115,18 @@ scan_token :: proc(self: ^Scanner) -> Error {
 		} else {
 			add_token(self, .SLASH)
 		}
+	case '"':
+		for (peak(self) != '"' && !scanner_is_at_end(self)) {
+			if (peak(self) != '\n') do self.line += 1
+			advance(self)
+		}
+
+		if (scanner_is_at_end(self)) {
+			return new_error(self.line, "Unterminated string", "String must have a closing \" before EOF")
+		}
+		advance(self)
+		value := transmute([]u8)self.source[self.start+1:self.current-1]
+		add_token(self, .STRING, value)
 	
 	// if there is a new line, we have to increase the number of lines
 	case '\n':
@@ -122,18 +136,45 @@ scan_token :: proc(self: ^Scanner) -> Error {
 	// if the character is none of the expected characters, the create a new error
 	// and return it
 	case:
-		errMessage := fmt.tprintf("character: {} unexpected", c)
-		return new_error(self.line, errMessage, "character not defined")
+		if (is_char_digit(c)) {
+			scan_number(self)
+		} else {
+			errMessage := fmt.tprintf("character: {} unexpected", c)
+			return new_error(self.line, errMessage, "character not defined")
+		}
 	}
 
 	// return no errors
 	return nil
 }
 
+is_char_digit :: proc(char: rune) -> bool {
+	return char >= '0' && char <='9'
+}
+
 @(private="file")
-peak :: proc(self: ^Scanner) -> rune {
+scan_number :: proc(self: ^Scanner) {
+	for is_char_digit(peak(self)) do advance(self)
+
+	if peak(self) == '.' && is_char_digit(peak(self, 2)) {
+		advance(self)
+
+		for is_char_digit(peak(self)) do advance(self)
+	}
+
+	num, err := strconv.parse_int(self.source[self.start:self.current])
+	if (err) {
+		error := new_error(self.line, "Tried to parse something that is not a number", "Error in lexer")
+		print_err(error)
+	}
+	value := transmute([size_of(num)]byte)num
+	add_token(self, .NUMBER, value[:])
+}
+
+@(private="file")
+peak :: proc(self: ^Scanner, amount: int = 1) -> rune {
 	if (scanner_is_at_end(self)) do return rune(0)
-	return rune(self.source[self.current])
+	return rune(self.source[self.current + (amount - 1)])
 }
 
 @(private="file")

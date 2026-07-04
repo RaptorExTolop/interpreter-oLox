@@ -1,5 +1,6 @@
 package main
 bytes :: byte
+import "core:encoding/endian"
 import "core:fmt"
 
 // All the types of the tokens
@@ -44,6 +45,14 @@ new_token :: proc(type: TokenType, lexeme: string, line: int, literal: []bytes =
 
 // parse the token to a string
 token_to_string :: proc(self: Token) -> string {
-	return fmt.tprintf("Type: {}, lexeme: {}, data: {}, found on: {}", self.type, self.lexeme, string(self.literal), self.line)
+	if (self.type != .NUMBER) {
+		return fmt.tprintf("Type: {}, lexeme: {}, data: {}, found on: {}", self.type, self.lexeme, string(self.literal), self.line)
+	}
+	val, ok := endian.get_i32(self.literal, .Little)
+	if (!ok) {
+		err := new_error("Unable to convert number back from bytes")
+		print_err(err, 70)
+	}
+	return fmt.tprintf("Type: {}, lexeme: {}, data: {}, found on: {}", self.type, self.lexeme, val, self.line)
 }
 
