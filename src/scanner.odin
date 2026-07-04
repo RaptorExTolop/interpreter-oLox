@@ -1,5 +1,8 @@
 package main
 
+import "core:strings"
+import "base:runtime"
+import "core:bytes"
 import "core:strconv"
 import "core:c"
 import "core:math"
@@ -82,6 +85,7 @@ scanner_is_at_end :: proc(self: ^Scanner) -> bool {
 @(private="file")
 // scan for the next token
 scan_token :: proc(self: ^Scanner) -> Error {
+	allocator := context.temp_allocator
 	// get the next rune
 	c: rune = advance(self)
 	switch (c) {
@@ -125,8 +129,8 @@ scan_token :: proc(self: ^Scanner) -> Error {
 			return new_error(self.line, "Unterminated string", "String must have a closing \" before EOF")
 		}
 		advance(self)
-		value := transmute([]u8)self.source[self.start+1:self.current-1]
-		add_token(self, .STRING, value)
+		string := self.source[self.start+1:self.current-1]
+		add_token(self, .STRING, string)
 	
 	// if there is a new line, we have to increase the number of lines
 	case '\n':
@@ -137,7 +141,7 @@ scan_token :: proc(self: ^Scanner) -> Error {
 	// and return it
 	case:
 		if (is_char_digit(c)) {
-			scan_number(self)
+			scan_number(self, allocator)
 		} else {
 			errMessage := fmt.tprintf("character: {} unexpected", c)
 			return new_error(self.line, errMessage, "character not defined")
@@ -153,7 +157,7 @@ is_char_digit :: proc(char: rune) -> bool {
 }
 
 @(private="file")
-scan_number :: proc(self: ^Scanner) {
+scan_number :: proc(self: ^Scanner, allocator: runtime.Allocator) -> Error {
 	for is_char_digit(peak(self)) do advance(self)
 
 	if peak(self) == '.' && is_char_digit(peak(self, 2)) {
@@ -162,13 +166,26 @@ scan_number :: proc(self: ^Scanner) {
 		for is_char_digit(peak(self)) do advance(self)
 	}
 
-	num, err := strconv.parse_int(self.source[self.start:self.current])
-	if (err) {
-		error := new_error(self.line, "Tried to parse something that is not a number", "Error in lexer")
-		print_err(error)
+	substr := self.source[self.start:self.current]
+
+	num, ok := strconv.parse_f64(substr)
+	if (!ok) {
+		return new_error(self.line, "Cannot parse number to float", "unable to parse in lexer")
 	}
-	value := transmute([size_of(num)]byte)num
-	add_token(self, .NUMBER, value[:])
+
+	dotIdx := strings.index_byte(substr, '.')
+	if (dotIdx != -1) {
+		decimals := len(substr) - dotIdx - 1
+
+		if (decimals > 0) {
+			mult := math.pow(10.0, f64(decimals))
+			num = math.round(num * mult) / mult
+		}
+	}
+
+	add_token(self, .NUMBER, num)
+
+	return nil
 }
 
 @(private="file")
@@ -190,7 +207,7 @@ advance :: proc(self: ^Scanner, amount: int = 1) -> rune {
 
 @(private="file")
 // add a new token
-add_token :: proc(self: ^Scanner, type: TokenType, literal: []byte = {}) {
+add_token :: proc(self: ^Scanner, type: TokenType, literal: TokenValue = nil) {
 	// create the lexeme string
 	// the lexeme comes from the start of the lexeme
 	// got earlier in the scan_tokens() function, to where

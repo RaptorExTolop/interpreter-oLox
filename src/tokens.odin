@@ -1,5 +1,4 @@
 package main
-bytes :: byte
 import "core:encoding/endian"
 import "core:fmt"
 
@@ -25,19 +24,24 @@ TokenType :: enum {
 	EOF
 }
 
+TokenValue :: union {
+	f64,
+	string
+}
+
 Token :: struct {
 	type: TokenType,
 	// the lexeme is the name of the
 	// token. E.g. var for VAR, or x for IDENTIFIER
 	lexeme: string,
 	// any data that comes with the token
-	literal: []bytes,
+	literal: TokenValue,
 	// what line the token is on
 	line: int,
 }
 
 // return a new token
-new_token :: proc(type: TokenType, lexeme: string, line: int, literal: []bytes = {}) -> Token {
+new_token :: proc(type: TokenType, lexeme: string, line: int, literal: TokenValue = nil) -> Token {
 	return {
 		type, lexeme, literal, line
 	}
@@ -45,14 +49,7 @@ new_token :: proc(type: TokenType, lexeme: string, line: int, literal: []bytes =
 
 // parse the token to a string
 token_to_string :: proc(self: Token) -> string {
-	if (self.type != .NUMBER) {
-		return fmt.tprintf("Type: {}, lexeme: {}, data: {}, found on: {}", self.type, self.lexeme, string(self.literal), self.line)
-	}
-	val, ok := endian.get_i32(self.literal, .Little)
-	if (!ok) {
-		err := new_error("Unable to convert number back from bytes")
-		print_err(err, 70)
-	}
-	return fmt.tprintf("Type: {}, lexeme: {}, data: {}, found on: {}", self.type, self.lexeme, val, self.line)
+	if (self.type != .NUMBER) do return fmt.tprintf("Type: {}, lexeme: {}, data: {}, found on: {}", self.type, self.lexeme, self.literal, self.line)
+	return fmt.tprintf("Type: {}, lexeme: {}, data to the 5th degree: %.3f, found on: {}", self.type, self.lexeme, self.literal, self.line)
 }
 
