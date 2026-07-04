@@ -114,14 +114,24 @@ scan_token :: proc(self: ^Scanner) -> Error {
 	case '<':
 		add_token(self, match_token(self, '=') ? .LESS_EQUAL : .LESS)
 	case '/':
+		// single line comment
 		if (match_token(self, '/')) {
 			for (peak(self) != '\n' && !scanner_is_at_end(self)) { advance(self) }
+		// multi line comment
+		} else if (match_token(self, '*')) {
+			for (!scanner_is_at_end(self)) {
+				if (peak(self) == '*' && peak(self, 2) == '/') {
+					advance(self, 2)
+					break
+				}
+				if c := advance(self); c == '\n' do self.line += 1
+			}
 		} else {
 			add_token(self, .SLASH)
 		}
 	case '"':
 		for (peak(self) != '"' && !scanner_is_at_end(self)) {
-			if (peak(self) != '\n') do self.line += 1
+			if (peak(self) == '\n') do self.line += 1
 			advance(self)
 		}
 
@@ -142,7 +152,9 @@ scan_token :: proc(self: ^Scanner) -> Error {
 	case:
 		if (is_char_digit(c)) {
 			scan_number(self, allocator)
-		} else {
+		} else if (is_char_alpha(c) || c == '_'){
+			scan_identifier(self)
+		}else {
 			errMessage := fmt.tprintf("character: {} unexpected", c)
 			return new_error(self.line, errMessage, "character not defined")
 		}
@@ -154,6 +166,30 @@ scan_token :: proc(self: ^Scanner) -> Error {
 
 is_char_digit :: proc(char: rune) -> bool {
 	return char >= '0' && char <='9'
+}
+
+is_char_alpha :: proc(char: rune) -> bool {
+	return char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z'
+}
+
+is_char_alpha_numeric :: proc(char: rune) -> bool {
+	return is_char_digit(char) || is_char_alpha(char)
+}
+
+is_char_valid_identifier :: proc(char: rune) -> bool {
+	return is_char_alpha_numeric(char) || char == '_'
+}
+
+@(private="file")
+scan_identifier :: proc(self: ^Scanner) {
+	for (is_char_valid_identifier(peak(self))) do advance(self)
+
+	name := self.source[self.start:self.current]
+	type := LanguageKeywords[name]
+
+	if (type == nil) do type = .IDENTIFIER
+
+	add_token(self, type)
 }
 
 @(private="file")

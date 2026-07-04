@@ -1,3 +1,4 @@
+#+feature dynamic-literals
 package main
 import "core:encoding/endian"
 import "core:fmt"
@@ -19,9 +20,30 @@ TokenType :: enum {
 
 	// Keywords
 	AND, CLASS, ELSE, FALSE, FUNC, FOR, IF, NIL, 
-	OR, PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+	OR, PRINTLN, PRINT, RETURN, SUPER, THIS, TRUE, 
+	VAR, WHILE,
 
 	EOF
+}
+
+LanguageKeywords := map[string]TokenType {
+	"and" = .AND,
+	"class" = .CLASS,
+	"else" = .ELSE,
+	"false" = .FALSE,
+	"func" = .FUNC,
+	"for" = .FOR,
+	"if" = .IF,
+	"nil" = .NIL,
+	"or" = .OR,
+	"print" = .PRINT,
+	"println" = .PRINTLN,
+	"return" = .RETURN,
+	"super" = .SUPER,
+	"this" = .THIS,
+	"true" = .TRUE,
+	"var" = .VAR,
+	"while" = .WHILE,
 }
 
 TokenValue :: union {
