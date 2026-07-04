@@ -1,5 +1,6 @@
 package main
 
+import "core:math"
 import "core:fmt"
 
 // The scanner struct
@@ -59,7 +60,7 @@ scan_tokens :: proc(self: ^Scanner) -> (error: Error) {
 	// if the program failed
 	if (hasFailed) {
 		// RIP program I guess
-		errMessage := fmt.tprintf("Program has excited due to unexpected errors")
+		errMessage := fmt.tprintf("Program has experienced unexpected errors")
 		return new_error(
 			errMessage
 		)
@@ -106,12 +107,18 @@ scan_token :: proc(self: ^Scanner) -> Error {
 		add_token(self, match_token(self, '=') ? .GREATER_EQUAL : .GREATER)
 	case '<':
 		add_token(self, match_token(self, '=') ? .LESS_EQUAL : .LESS)
+	case '/':
+		if (match_token(self, '/')) {
+			for (peak(self) != '\n' && !scanner_is_at_end(self)) { advance(self) }
+		} else {
+			add_token(self, .SLASH)
+		}
 	
 	// if there is a new line, we have to increase the number of lines
 	case '\n':
 		self.line += 1
 	// ignore whitespaces and tabs, they are not used in this language
-	case ' ', '\t':
+	case ' ', '\t', '\r':
 	// if the character is none of the expected characters, the create a new error
 	// and return it
 	case:
@@ -121,6 +128,12 @@ scan_token :: proc(self: ^Scanner) -> Error {
 
 	// return no errors
 	return nil
+}
+
+@(private="file")
+peak :: proc(self: ^Scanner) -> rune {
+	if (scanner_is_at_end(self)) do return rune(0)
+	return rune(self.source[self.current])
 }
 
 @(private="file")

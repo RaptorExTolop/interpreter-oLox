@@ -77,8 +77,6 @@ run_prompt :: proc(allocator: runtime.Allocator) {
 			return 
 		}
 
-		fmt.printf("You have inputed: {}\n", input)
-
 		e := run(input, allocator)
 		if (e != nil) {
 			print_err(e)
